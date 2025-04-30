@@ -1,1 +1,4 @@
 my_env
+
+src/__pycache__
+src/spacy

@@ -29,10 +29,85 @@ def test_encoder_random():
     assert output.shape == (config['batch_size'], config['seq_len'], config['embedding_dim']), f"Output shape mismatch: {output.shape}"
     print("✅ Encoder unit test passed.")
 
+# ====== Dictionary typo dan kata gaul ======
+typo_dict = {
+    "kmu": "kamu",
+    "gk": "nggak",
+    "smangat": "semangat",
+    "gpp": "tidak apa-apa",
+    "btw": "ngomong-ngomong",
+    "wkwk": "haha",
+    "wkwwk": "haha",
+    "wkwkwk": "haha",
+    "pls": "please",
+    "thx": "terima kasih",
+    "makasi": "terima kasih",
+    "makasih": "terima kasih",
+    "tq": "terima kasih",
+    "u": "you",
+    "luv": "love",
+    "omg": "ya ampun",
+}
+
+def normalize_typo(text):
+    words = text.split()
+    normalized_words = [typo_dict.get(word.lower(), word) for word in words]
+
+    return ' '.join(normalized_words)
+
 
 # ====== Tokenizer: bersihkan simbol dan lowercase ======
-def tokenize(text):
-    return re.findall(r'\b\w+\b', text.lower())
+# def tokenize(text):
+
+#     """
+#     \b\w+\b – Kata biasa (alphanumeric word);                               🔍 Menangkap contoh: email, kirim, konfirmasi, sample2, 123data
+#     [^\w\s] – Simbol atau karakter non-kata dan non-spasi;                  🔍 Menangkap contoh: @, ., !, ,, ?, :, #
+#     (?:[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}) – Alamat email       🔍 Menangkap contoh: sample@gmail.com, nama.user+1@domain.co.id
+#     """
+
+#     tokens = re.findall(r'\b\w+\b|[^\w\s]|(?:[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})', text.lower())
+    
+#     # Pisahkan kalimat berdasarkan tanda titik, tanda tanya, atau tanda seru
+#     sentences = re.split(r'[.!?]', text)
+#     sentences = [sentence.strip() for sentence in sentences if sentence.strip()]  # Remove empty sentences
+    
+#     return tokens, sentences
+
+
+def tokenize_and_split_sentences(text):
+    # Normalisasi typo/gaul
+    text = normalize_typo(text)
+
+    # Pola regex
+    token_pattern = r"""
+        (?:https?://[^\s]+) |                                          # URL
+        (?:[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}) |           # Email
+        (?:@\w+) |                                                     # Mention (@user)
+        (?:\#\w+) |                                                    # Hashtag (#topic)
+        
+        (?:\d{1,2}[-/]\d{1,2}[-/]\d{2,4}) |                            # Tanggal: 29/04/2025 atau 04-29-25
+        (?:\d{4}[-/]\d{1,2}[-/]\d{1,2}) |                              # Tanggal: 2025-04-29
+        (?:\d{1,2}\s+\w+\s+\d{2,4}) |                                  # Tanggal: 29 April 2025
+        (?:\w+\s+\d{1,2},\s+\d{4}) |                                   # Tanggal: April 29, 2025
+
+        (?:\d{1,3}(?:[.,]\d{3})+(?:[.,]\d+)?) |                        # Angka ribuan/decimal: 1,000 / 2.5M
+        (?:\d+(?:\.\d+)?%) |                                           # Persentase: 50%, 12.5%
+        (?:[$€£¥₩₹]\s?\d+(?:[.,]\d+)*) |                               # Simbol mata uang + angka
+        (?:rp\s?\d+(?:[.,]\d+)*) |                                     # Khusus Rupiah: Rp50000, Rp 50.000
+
+        (?:\b\w+\b) |                                                  # Kata biasa
+        (?:[^\w\s])                                                    # Simbol lain (.,!?)
+    """
+    
+    tokens = re.findall(token_pattern, text.lower(), flags=re.VERBOSE)
+    
+    # Pisahkan kalimat berdasarkan tanda akhir
+    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+    sentences = [sentence.strip() for sentence in sentences if sentence.strip()]
+
+    return tokens, sentences
+
+
 
 
 # # Fungsi untuk membangun vocabulary dari teks input user
@@ -48,15 +123,18 @@ def tokenize(text):
 # ====== Build Vocabulary dari teks user ======
 def build_vocab_from_text(text):
     vocab = {"<pad>": 0, "<unk>": 1}
-    tokens = tokenize(text)
+    tokens, sentences = tokenize(text)
+    
     unique_tokens = sorted(set(tokens))
+
     for i, word in enumerate(unique_tokens, start=2):
         vocab[word] = i
-    return vocab
+    
+    return vocab, sentences
 
 # === Unit Test dengan input bebas dari user ===
 def test_encoder_user_text_dynamic():
-    user_text = input("Masukkan kalimat: ")  # contoh: saya suka makan nasi goreng
+    user_text = input("Masukkan kalimat: ")  
 
     vocab = build_vocab_from_text(user_text)
     vocab_size = len(vocab)
@@ -80,7 +158,7 @@ def test_encoder_user_text_dynamic():
     output = model(input_tensor)
     print("\n✅ Vocabulary:", vocab)
     print("✅ Token IDs:", token_ids)
-    print("✅ Output shape:", output.shape)
+    print("✅ Output shape:", output.shape, "\n")
     print("✅ Output tensor:\n", output)
 
 if __name__ == "__main__": 

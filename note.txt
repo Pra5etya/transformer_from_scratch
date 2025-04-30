@@ -1,0 +1,30 @@
+smangat pls kirim ke sample@gmail.com yaaa... tq! aku lahir 29/04/2025 dan suka AI, ML, USA.
+
+
+smangat pls kirim ke sample@gmail.com yaaa... tq! aku lahir 29/04/2025 dan suka AI, ML, USA.
+BTW, kmu udah coba dataset dari kaggle.com? Gpp klo belum, ntar aku bantuin.
+OMG! nilainya 99.99% lho... makasi banget ya!
+Pls review code ku sebelum jam 3 sore. Thx!
+
+
+
+
+
+
+# Tentukan folder lokal untuk menyimpan data NLTK
+download_dir = 'nltk_data' # root project
+
+# Periksa apakah folder sudah ada
+if os.path.exists(download_dir) and os.listdir(download_dir):
+    print("Data NLTK sudah ada, tidak perlu mendownload ulang.")
+
+else:
+    # Jika folder tidak ada atau kosong, buat folder dan download seluruh data NLTK
+    if not os.path.exists(download_dir):
+        os.makedirs(download_dir)
+
+    print("Mendownload data NLTK...")
+    nltk.download('all', download_dir)
+    print("Download selesai.")
+# add path for nltk
+nltk.data.path.append(download_dir)
