@@ -11,7 +11,7 @@ typo_dict = {
     "btw": "ngomong-ngomong", "wkwk": "haha", "wkwwk": "haha", "wkwkwk": "haha",
     "pls": "please", "thx": "terima kasih", "makasi": "terima kasih", 
     "makasih": "terima kasih", "tq": "terima kasih", "u": "you", 
-    "luv": "love", "omg": "ya ampun",
+    "luv": "love", "omg": "ya ampun", "ntar": "nanti",
 }
 
 # ====================== Daftar Akronim yang Dikecualikan dari Lowercase ======================
@@ -39,37 +39,83 @@ def smart_lowercase(token):
 
 # ====================== Tokenisasi dan Pemisahan Kalimat ======================
 def tokenize_and_split_sentences(text):
-    # Preprocessing: ubah ... menjadi .
-    text = re.sub(r"\.\.\.+", ".", text)
+    # Normalisasi titik-titik beruntun
+    text = re.sub(r"\.\.\.+", " ", text)
 
     # Normalisasi typo/gaul
     text = normalize_typo(text)
 
-    token_pattern = r"""
-        (?:https?://[^\s]+) |                                          # URL lengkap
-        (?:\b(?:www\.)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})(?:/[^\s]*)? |     # Domain dan subdomain
-        (?:[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}) |           # Email
-        (?:@\w+) |                                                     # Mention
-        (?:\#\w+) |                                                    # Hashtag
-        (?:\d{1,2}[-/]\d{1,2}[-/]\d{2,4}) |                            # Tanggal umum
-        (?:\d{4}[-/]\d{1,2}[-/]\d{1,2}) |                              # Tanggal format ISO
-        (?:\d{1,2}\s+\w+\s+\d{2,4}) |                                  # Tanggal panjang
-        (?:\w+\s+\d{1,2},\s+\d{4}) |                                   # Tanggal gaya Inggris
-        (?:\d{1,3}(?:[.,]\d{3})+(?:[.,]\d+)?) |                        # Angka besar
-        (?:\d+(?:\.\d+)?%) |                                           # Persentase
-        (?:[$€£¥₩₹]\s?\d+(?:[.,]\d+)*) |                               # Mata uang
-        (?:rp\s?\d+(?:[.,]\d+)*) |                                     # Rupiah
-        (?:\b\w+\b) |                                                  # Kata biasa
-        (?:[^\w\s])                                                    # Simbol lain
-    """
+    # Proteksi entitas penting
+    protected_patterns = {
+        r"\b(www)\s*\.\s*([a-zA-Z0-9-]+)\s*\.\s*([a-zA-Z]{2,})\b": r"\1<DOT>\2<DOT>\3<DOT>\4",
+        r"\b([a-zA-Z0-9._%+-]+)\s*@\s*([a-zA-Z0-9.-]+)\s*\.\s*([a-zA-Z]{2,})\b": r"\1<AT>\2<DOT>\3",
+        r"\b([a-zA-Z0-9-]+)\s*\.\s*([a-zA-Z]{2,})\b": r"\1<DOT>\2",
+        r"(?<=\d)\s*[.,]\s*(?=\d)": r"<DECIMAL>",  # Mengganti desimal koma/perioda menjadi <DECIMAL>
+        r"(\d{1,2})\s*/\s*(\d{1,2})\s*/\s*(\d{2,4})": r"\1/\2/\3",  # Menghindari spasi pada tanggal
+        r"(\d+)\s*%\s*": r"\1<PC>",  # Menghindari spasi setelah persentase
+    }
 
+    for pattern, repl in protected_patterns.items():
+        text = re.sub(pattern, repl, text)
+
+    # Menangani tanda seru berulang '!!!' menjadi satu tanda seru
+    text = re.sub(r"(!)\1+", r"\1", text)
+
+    # Tambahkan spasi setelah titik jika langsung diikuti huruf atau angka tanpa spasi
+    text = re.sub(r"(?<=[.?!])(?=\w)", r" ", text)
+
+    # Tokenisasi
+    token_pattern = r"""
+        (?:https?://[^\s]+) |
+        (?:\b(?:www\.)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})(?:/[^\s]*)? |
+        (?:[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}) |
+        (?:\b\w+<AT>\w+<DOT>\w+\b) |
+        (?:@\w+) |
+        (?:\#\w+) |
+        (?:\d{1,2}[-/]\d{1,2}[-/]\d{2,4}) |
+        (?:\d{4}[-/]\d{1,2}[-/]\d{1,2}) |
+        (?:\d{1,2}\s+\w+\s+\d{2,4}) |
+        (?:\w+\s+\d{1,2},\s+\d{4}) |
+        (?:\d{1,3}(?:[.,]\d{3})+(?:[.,]\d+)?) |
+        (?:\d+(?:<DECIMAL>\d+)?%) |
+        (?:[$€£¥₩₹]\s?\d+(?:[.,]\d+)*) |
+        (?:rp\s?\d+(?:[.,]\d+)*) |
+        (?:\b\w+\b) |
+        (?:[^\w\s])
+    """
     raw_tokens = re.findall(token_pattern, text, flags=re.VERBOSE)
     tokens = [smart_lowercase(tok) for tok in raw_tokens if tok.strip()]
 
-    # Pisahkan berdasarkan titik + spasi, tanda seru, tanda tanya, bahkan ... 
-    sentence_split_pattern = r'(?<=[.!?…])\s+'
-    sentence_candidates = re.split(sentence_split_pattern, text.strip())
-    sentences = [s.strip() for s in sentence_candidates if s.strip()]
+    # Pola pemisahan kalimat yang lebih hati-hati
+    split_pattern = re.compile(r'''
+        (?<=\w[.!?…])           # Sebelum titik, tanda seru, atau tanya
+        (?=\s*[A-Z0-9])           # Diikuti oleh huruf kapital atau angka
+        | (?<=\?)                # setelah tanda tanya
+        | (?<=\!)                # setelah tanda seru
+        | (?<=\.)                # Setelah titik jika diikuti huruf kecil
+    ''', re.VERBOSE)
+
+    rough_sentences = split_pattern.split(text.strip())
+
+    # Gabungkan kalimat jika setelah "!" diikuti kata lanjutan informal
+    sentences = []
+    for i, s in enumerate(rough_sentences):
+        s = s.strip()
+        if i > 0 and sentences:
+            first_word = s.split()[0].lower() if s.split() else ""
+            informal_followups = ['lho', 'dong', 'nih', 'deh', 'ya', 'kan', 'kok', 'sih', 'banget']
+            if first_word in informal_followups:
+                sentences[-1] += " " + s  # gabungkan ke sebelumnya
+                continue
+        if s:  # Pastikan kalimat bukan kosong
+            sentences.append(s)
+
+    # Unprotect simbol
+    def unprotect(s):
+        return s.replace("<DOT>", ".").replace("<AT>", "@").replace("<DECIMAL>", ".").replace("<PC>", "%")
+
+    tokens = [unprotect(tok) for tok in tokens]
+    sentences = [unprotect(s) for s in sentences]
 
     return tokens, sentences
 
