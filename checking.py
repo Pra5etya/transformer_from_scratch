@@ -8,11 +8,11 @@ def torch_check():
     print("Versi PyTorch:", torch.__version__)
 
     cuda_availibility = torch.cuda.is_available()
-    print("Apakah CUDA tersedia?", cuda_availibility, '\n')
+    print("Apakah CUDA tersedia?", cuda_availibility)
 
     if torch.cuda.is_available():
-        print("Jumlah GPU terdeteksi:", torch.cuda.device_count(), '\n')
-        print("Nama GPU:", torch.cuda.get_device_name(0), '\n')
+        print("Jumlah GPU terdeteksi:", torch.cuda.device_count())
+        print("Nama GPU:", torch.cuda.get_device_name(0))
 
     else:
         print("GPU CUDA tidak tersedia. Menggunakan CPU.", '\n')
@@ -31,6 +31,7 @@ def lib_spacy():
     # Cek apakah model sudah ada di folder
     if os.path.exists(model_path) and os.listdir(model_path):
         print(f"Model spaCy sudah ada di '{model_path}', tidak perlu mengunduh ulang.")
+
     else:
         # Jika folder belum ada atau kosong, buat folder dan unduh model
         if not os.path.exists(model_path):
@@ -40,9 +41,11 @@ def lib_spacy():
         # Mengunduh model menggunakan spacy.cli.download()
         print(f"Mengunduh model spaCy '{model_name}'...")
         download(model_name)  # Mengunduh model secara otomatis
+
         # Load model yang sudah diunduh dan simpan ke folder tujuan
         nlp = spacy.load(model_name)
         nlp.to_disk(model_path)
+
         print(f"Model berhasil disimpan ke '{model_path}'.")
 
     # Menggunakan model yang sudah disimpan

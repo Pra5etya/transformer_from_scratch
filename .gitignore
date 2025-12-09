@@ -1,4 +1,8 @@
-my_env
+# Env
+win_env
 
-src/__pycache__
+# Cache
+**__pycache__
+
+# Language Model
 src/spacy
